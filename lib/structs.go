@@ -29,6 +29,11 @@ type Person struct {
 	LastName  string
 }
 
+type Task struct {
+	ID   int
+	Name string
+}
+
 func NewStatus(code int, message string) string {
 	raw := JsonStatus{code, message}
 	jsonVal, jsonErr := json.Marshal(raw)

@@ -37,7 +37,7 @@ func newPerson(out http.ResponseWriter, req *http.Request) {
 		io.WriteString(out, structs.NewStatus(codes.ErrorSqlFailedExecute, err.Error()))
 		return
 	}
-	io.WriteString(out, structs.NewStatus(codes.SuccessNewPerson, ""))
+	io.WriteString(out, structs.NewStatus(codes.Success, ""))
 }
 
 func newTime(out http.ResponseWriter, req *http.Request) {
@@ -61,7 +61,55 @@ func newTime(out http.ResponseWriter, req *http.Request) {
 		io.WriteString(out, structs.NewStatus(codes.ErrorSqlFailedExecute, err.Error()))
 		return
 	}
-	io.WriteString(out, structs.NewStatus(codes.SuccessNewTime, ""))
+	io.WriteString(out, structs.NewStatus(codes.Success, ""))
+}
+
+func newTask(out http.ResponseWriter, req *http.Request) {
+	out.Header().Add("Access-Control-Allow-Origin", "*")
+	req.ParseForm()
+	err := db.Ping()
+	if err != nil {
+		io.WriteString(out, structs.NewStatus(codes.ErrorSqlConnectionFailed, err.Error()))
+		return
+	}
+	taskID := req.PostForm.Get("id")
+	name := req.PostForm.Get("name")
+	if (taskID == "") || (name == "") {
+		io.WriteString(out, structs.NewStatus(codes.ErrorInvalidArguments, "Invalid arguments"))
+		return
+	}
+	_, err = db.Exec("INSERT INTO task (id, name) VALUES(?, ?)", taskID, name)
+	if err != nil {
+		io.WriteString(out, structs.NewStatus(codes.ErrorSqlFailedExecute, err.Error()))
+		return
+	}
+	io.WriteString(out, structs.NewStatus(codes.Success, ""))
+}
+
+func getTasks(out http.ResponseWriter, req *http.Request) {
+	out.Header().Add("Access-Control-Allow-Origin", "*")
+	err := db.Ping()
+	if err != nil {
+		io.WriteString(out, structs.NewStatus(codes.ErrorSqlConnectionFailed, err.Error()))
+		return
+	}
+	rows, err := db.Query("SELECT id, name FROM task")
+	if err != nil {
+		io.WriteString(out, structs.NewStatus(codes.ErrorSqlFailedExecute, err.Error()))
+		return
+	}
+	var tasks []structs.Task
+	defer rows.Close()
+	for rows.Next() {
+		var id int
+		var name string
+		if err = rows.Scan(&id, &name); err != nil {
+			io.WriteString(out, structs.NewStatus(codes.ErrorSqlFailedExecute, err.Error()))
+			return
+		}
+		tasks = append(tasks, structs.Task{id, name})
+	}
+	io.WriteString(out, structs.NewData(codes.Success, tasks))
 }
 
 func getPersons(out http.ResponseWriter, req *http.Request) {
@@ -88,7 +136,7 @@ func getPersons(out http.ResponseWriter, req *http.Request) {
 		}
 		persons = append(persons, structs.Person{id, firstname, lastname})
 	}
-	io.WriteString(out, structs.NewData(codes.SuccessGetPersons, persons))
+	io.WriteString(out, structs.NewData(codes.Success, persons))
 }
 
 func main() {
@@ -106,7 +154,9 @@ func main() {
 	}
 	http.HandleFunc("/newperson", newPerson)
 	http.HandleFunc("/newtime", newTime)
+	http.HandleFunc("/newtask", newTask)
 	http.HandleFunc("/getpersons", getPersons)
+	http.HandleFunc("/gettasks", getTasks)
 	serverAddress := fmt.Sprintf("%s:%d", config.HttpAddress, config.HttpPort)
 	fmt.Printf("Listening on %s", serverAddress)
 	log.Fatal(http.ListenAndServe(serverAddress, nil))
