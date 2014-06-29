@@ -72,13 +72,12 @@ func newTask(out http.ResponseWriter, req *http.Request) {
 		io.WriteString(out, structs.NewStatus(codes.ErrorSqlConnectionFailed, err.Error()))
 		return
 	}
-	taskID := req.PostForm.Get("id")
 	name := req.PostForm.Get("name")
-	if (taskID == "") || (name == "") {
+	if name == "" {
 		io.WriteString(out, structs.NewStatus(codes.ErrorInvalidArguments, "Invalid arguments"))
 		return
 	}
-	_, err = db.Exec("INSERT INTO task (id, name) VALUES(?, ?)", taskID, name)
+	_, err = db.Exec("INSERT INTO task (name) VALUES(?)", name)
 	if err != nil {
 		io.WriteString(out, structs.NewStatus(codes.ErrorSqlFailedExecute, err.Error()))
 		return
